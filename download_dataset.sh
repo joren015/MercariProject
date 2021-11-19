@@ -1,16 +1,18 @@
 #!/bin/bash
 
-if [ ! -d "data" ] 
+DATA_FOLDER=code/data
+
+if [ ! -d "$DATA_FOLDER" ] 
 then
-    mkdir data
+    mkdir $DATA_FOLDER
 fi
 
-if [ ! -f "data/mercari-price-suggestion-challenge.zip" ]
+if [ ! -f "$DATA_FOLDER/mercari-price-suggestion-challenge.zip" ]
 then
-    kaggle competitions download -p data -c mercari-price-suggestion-challenge
+    kaggle competitions download -p $DATA_FOLDER -c mercari-price-suggestion-challenge
 fi
 
-unzip -d data -o data/mercari-price-suggestion-challenge.zip
-unzip -d data -o data/test_stg2.tsv.zip
-7za e data/train.tsv.7z -aoa -odata
-7za e data/test.tsv.7z -aoa -odata
+unzip -d $DATA_FOLDER -o $DATA_FOLDER/mercari-price-suggestion-challenge.zip
+unzip -d $DATA_FOLDER -o $DATA_FOLDER/test_stg2.tsv.zip
+7za e $DATA_FOLDER/train.tsv.7z -aoa -o$DATA_FOLDER
+7za e $DATA_FOLDER/test.tsv.7z -aoa -o$DATA_FOLDER
