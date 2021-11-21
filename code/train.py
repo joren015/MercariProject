@@ -9,7 +9,7 @@ from lightgbm import LGBMRegressor
 from scipy.sparse import hstack
 from sklearn.linear_model import Ridge
 from sklearn.metrics import make_scorer
-from sklearn.model_selection import (GridSearchCV, RepeatedKFold,
+from sklearn.model_selection import (cross_validate, RepeatedKFold,
                                      train_test_split)
 
 pd.set_option('max_colwidth', 200)
@@ -83,48 +83,48 @@ X_cat_jung = pickle.load(
 X_cat_so = pickle.load(
     open("data/cat_so_label_binarizer/X_vectorized.pkl", "rb"))
 
-sparse_matrix_list = (X_name, X_descp, X_brand, X_item_cond_id, X_shipping,
-                      X_cat_dae, X_cat_jung, X_cat_so)
-# X_features_sparse = hstack(sparse_matrix_list).tocsr()
+# sparse_matrix_list = (X_name, X_descp, X_brand, X_item_cond_id, X_shipping,
+#                       X_cat_dae, X_cat_jung, X_cat_so)
+# # X_features_sparse = hstack(sparse_matrix_list).tocsr()
 
-# del X_features_sparse
-gc.collect()
+# # del X_features_sparse
+# gc.collect()
 
-linear_model = Ridge(solver="lsqr", fit_intercept=False)
+# linear_model = Ridge(solver="lsqr", fit_intercept=False)
 
-# RMSLE without Item Description
-sparse_matrix_list = (X_name, X_brand, X_item_cond_id, X_shipping, X_cat_dae,
-                      X_cat_jung, X_cat_so)
-linear_preds, y_test = model_train_predict(model=linear_model,
-                                           matrix_list=sparse_matrix_list)
-print('Item Description을 제외했을 때 rmsle 값:',
-      evaluate_org_price(y_test, linear_preds))
+# # RMSLE without Item Description
+# sparse_matrix_list = (X_name, X_brand, X_item_cond_id, X_shipping, X_cat_dae,
+#                       X_cat_jung, X_cat_so)
+# linear_preds, y_test = model_train_predict(model=linear_model,
+#                                            matrix_list=sparse_matrix_list)
+# print('Item Description을 제외했을 때 rmsle 값:',
+#       evaluate_org_price(y_test, linear_preds))
 
-# RMSLE with Item Description
-sparse_matrix_list = (X_descp, X_name, X_brand, X_item_cond_id, X_shipping,
-                      X_cat_dae, X_cat_jung, X_cat_so)
-linear_preds, y_test = model_train_predict(model=linear_model,
-                                           matrix_list=sparse_matrix_list)
-print('Item Description을 포함한 rmsle 값:',
-      evaluate_org_price(y_test, linear_preds))
+# # RMSLE with Item Description
+# sparse_matrix_list = (X_descp, X_name, X_brand, X_item_cond_id, X_shipping,
+#                       X_cat_dae, X_cat_jung, X_cat_so)
+# linear_preds, y_test = model_train_predict(model=linear_model,
+#                                            matrix_list=sparse_matrix_list)
+# print('Item Description을 포함한 rmsle 값:',
+#       evaluate_org_price(y_test, linear_preds))
 
-gc.collect()
+# gc.collect()
 
-sparse_matrix_list = (X_descp, X_name, X_brand, X_item_cond_id, X_shipping,
-                      X_cat_dae, X_cat_jung, X_cat_so)
+# sparse_matrix_list = (X_descp, X_name, X_brand, X_item_cond_id, X_shipping,
+#                       X_cat_dae, X_cat_jung, X_cat_so)
 
-# RMSLE of LGBM
-lgbm_model = LGBMRegressor(n_estimators=200,
-                           learning_rate=0.5,
-                           num_leaves=125,
-                           random_state=156)
-lgbm_preds, y_test = model_train_predict(model=lgbm_model,
-                                         matrix_list=sparse_matrix_list)
-print('LightGBM rmsle 값:', evaluate_org_price(y_test, lgbm_preds))
+# # RMSLE of LGBM
+# lgbm_model = LGBMRegressor(n_estimators=200,
+#                            learning_rate=0.5,
+#                            num_leaves=125,
+#                            random_state=156)
+# lgbm_preds, y_test = model_train_predict(model=lgbm_model,
+#                                          matrix_list=sparse_matrix_list)
+# print('LightGBM rmsle 값:', evaluate_org_price(y_test, lgbm_preds))
 
-preds = lgbm_preds * 0.45 + linear_preds * 0.55
-print('LightGBM과 Ridge를 ensemble한 최종 rmsle 값:',
-      evaluate_org_price(y_test, preds))
+# preds = lgbm_preds * 0.45 + linear_preds * 0.55
+# print('LightGBM과 Ridge를 ensemble한 최종 rmsle 값:',
+#       evaluate_org_price(y_test, preds))
 
 mlflow.sklearn.autolog()
 with mlflow.start_run() as run:
@@ -140,22 +140,19 @@ with mlflow.start_run() as run:
         "Negitive median absolute error": "neg_median_absolute_error",
         "R2": "r2"
     }
-    param_grid = {"alpha": [0.01, 0.1, 1]}
-
-    linear_model = Ridge(solver="lsqr", fit_intercept=False)
-
+    lgbm_model = LGBMRegressor(n_estimators=200,
+                               learning_rate=0.5,
+                               num_leaves=125,
+                               random_state=42)
     sparse_matrix_list = (X_descp, X_name, X_brand, X_item_cond_id, X_shipping,
                           X_cat_dae, X_cat_jung, X_cat_so)
     X = hstack(sparse_matrix_list).tocsr()
     y = mercari_df['price']
     cv = RepeatedKFold(n_splits=2, n_repeats=2, random_state=42)
-    gs = GridSearchCV(linear_model,
-                      scoring=metrics,
-                      refit="Root mean squared log error",
-                      param_grid=param_grid,
-                      cv=cv,
-                      n_jobs=1,
-                      return_train_score=True,
-                      verbose=4)
-    gs.fit(X, y)
-    results = gs.cv_results_
+    results = cross_validate(lgbm_model,
+                             X,
+                             y,
+                             scoring=metrics,
+                             cv=cv,
+                             n_jobs=1,
+                             verbose=4)

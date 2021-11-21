@@ -3,7 +3,6 @@ import gc
 import pickle
 from os import makedirs
 
-import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.preprocessing import LabelBinarizer
@@ -78,7 +77,8 @@ fit_and_save_vectorizer(
     mercari_df['item_description'],
     TfidfVectorizer(max_features=50000,
                     ngram_range=(1, 3),
-                    stop_words='english'), "data/item_description_tfidf_vectorizer")
+                    stop_words='english'),
+    "data/item_description_tfidf_vectorizer")
 
 # tfidf = pickle.load(open("x_result.pkl", "rb"))
 # X_test = tfidf.transform(mercari_df['item_description'])
