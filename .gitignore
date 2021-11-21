@@ -152,3 +152,6 @@ data/
 
 # Push script
 push.sh
+
+# Pickles
+*.pkl
