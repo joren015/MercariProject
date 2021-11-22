@@ -1,4 +1,3 @@
-print("Importing packages")
 import gc
 import pickle
 from os import makedirs
@@ -33,82 +32,55 @@ def fit_and_save_vectorizer(X, vectorizer, folder_name):
     return vectorizer, X_vectorized
 
 
-print("Loading dataset")
-mercari_df = pd.read_csv('./data/train.tsv', sep='\t')
+def preprocess_light_gbm(nrows=-1):
+    if nrows > 0:
+        mercari_df = pd.read_csv('./data/train.tsv', sep='\t', nrows=nrows)
+    else:
+        mercari_df = pd.read_csv('./data/train.tsv', sep='\t')
 
-print("Preprocessing")
-boolean_cond = mercari_df['item_description'] == 'No description yet'
+    # Calls split_cat() function above and create cat_dae, cat_jung, cat_so columns in mercari_df
+    mercari_df['category_list'] = mercari_df['category_name'].apply(
+        lambda x: split_cat(x))
+    mercari_df['category_list'].head()
 
-# Calls split_cat() function above and create cat_dae, cat_jung, cat_so columns in mercari_df
-mercari_df['category_list'] = mercari_df['category_name'].apply(
-    lambda x: split_cat(x))
-mercari_df['category_list'].head()
+    mercari_df['cat_dae'] = mercari_df['category_list'].apply(lambda x: x[0])
+    mercari_df['cat_jung'] = mercari_df['category_list'].apply(lambda x: x[1])
+    mercari_df['cat_so'] = mercari_df['category_list'].apply(lambda x: x[2])
 
-mercari_df['cat_dae'] = mercari_df['category_list'].apply(lambda x: x[0])
-mercari_df['cat_jung'] = mercari_df['category_list'].apply(lambda x: x[1])
-mercari_df['cat_so'] = mercari_df['category_list'].apply(lambda x: x[2])
+    mercari_df.drop('category_list', axis=1, inplace=True)
 
-mercari_df.drop('category_list', axis=1, inplace=True)
+    # Handling Null Values
+    mercari_df['brand_name'] = mercari_df['brand_name'].fillna(
+        value='Other_Null')
+    mercari_df['category_name'] = mercari_df['category_name'].fillna(
+        value='Other_Null')
+    mercari_df['item_description'] = mercari_df['item_description'].fillna(
+        value='Other_Null')
 
-# Handling Null Values
-mercari_df['brand_name'] = mercari_df['brand_name'].fillna(value='Other_Null')
-mercari_df['category_name'] = mercari_df['category_name'].fillna(
-    value='Other_Null')
-mercari_df['item_description'] = mercari_df['item_description'].fillna(
-    value='Other_Null')
+    gc.collect()
 
-gc.collect()
+    print("Vectorizing name")
+    # Convert "name" with feature vectorization
+    fit_and_save_vectorizer(mercari_df["name"],
+                            CountVectorizer(max_features=30000),
+                            "data/name_count_vectorizer")
 
-print("Vectorizing name")
-# Convert "name" with feature vectorization
-# cnt_vec = CountVectorizer(max_features=30000)
-# X_name = cnt_vec.fit_transform(mercari_df.name)
-fit_and_save_vectorizer(mercari_df["name"],
-                        CountVectorizer(max_features=30000),
-                        "data/name_count_vectorizer")
+    print("Vectorizing item_description")
+    # Convert "item_description" with feature vectorization
+    fit_and_save_vectorizer(
+        mercari_df['item_description'],
+        TfidfVectorizer(max_features=50000,
+                        ngram_range=(1, 3),
+                        stop_words='english'),
+        "data/item_description_tfidf_vectorizer")
 
-print("Vectorizing item_description")
-# Convert "item_description" with feature vectorization
-# tfidf_descp = TfidfVectorizer(max_features=50000,
-#                               ngram_range=(1, 3),
-#                               stop_words='english')
-# X_descp = tfidf_descp.fit_transform(mercari_df['item_description'])
-fit_and_save_vectorizer(
-    mercari_df['item_description'],
-    TfidfVectorizer(max_features=50000,
-                    ngram_range=(1, 3),
-                    stop_words='english'),
-    "data/item_description_tfidf_vectorizer")
-
-# tfidf = pickle.load(open("x_result.pkl", "rb"))
-# X_test = tfidf.transform(mercari_df['item_description'])
-
-# Convert each feature (brand_name, item_condition_id, shipping) to one-hot-encoded sparse matrix
-
-for col in [
-        "brand_name", "item_condition_id", "shipping", "cat_dae", "cat_jung",
-        "cat_so"
-]:
-    print("Vectorizing {}".format(col))
-    fit_and_save_vectorizer(mercari_df[col],
-                            LabelBinarizer(sparse_output=True),
-                            "data/{}_label_binarizer".format(col))
-
-# lb_brand_name = LabelBinarizer(sparse_output=True)
-# X_brand = lb_brand_name.fit_transform(mercari_df['brand_name'])
-
-# lb_item_cond_id = LabelBinarizer(sparse_output=True)
-# X_item_cond_id = lb_item_cond_id.fit_transform(mercari_df['item_condition_id'])
-
-# lb_shipping = LabelBinarizer(sparse_output=True)
-# X_shipping = lb_shipping.fit_transform(mercari_df['shipping'])
-
-# Convert each feature (cat_dae, cat_jung, cat_so) to one-hot-encoded spare matrix
-# lb_cat_dae = LabelBinarizer(sparse_output=True)
-# X_cat_dae = lb_cat_dae.fit_transform(mercari_df['cat_dae'])
-
-# lb_cat_jung = LabelBinarizer(sparse_output=True)
-# X_cat_jung = lb_cat_jung.fit_transform(mercari_df['cat_jung'])
-
-# lb_cat_so = LabelBinarizer(sparse_output=True)
-# X_cat_so = lb_cat_so.fit_transform(mercari_df['cat_so'])
+    # Convert each feature (brand_name, item_condition_id, shipping) to one-hot-encoded sparse matrix
+    # Convert each feature (cat_dae, cat_jung, cat_so) to one-hot-encoded spare matrix
+    for col in [
+            "brand_name", "item_condition_id", "shipping", "cat_dae",
+            "cat_jung", "cat_so"
+    ]:
+        print("Vectorizing {}".format(col))
+        fit_and_save_vectorizer(mercari_df[col],
+                                LabelBinarizer(sparse_output=True),
+                                "data/{}_label_binarizer".format(col))
