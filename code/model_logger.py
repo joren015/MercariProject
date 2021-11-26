@@ -13,6 +13,7 @@ def run(model, X, y, metrics, experiment, n_splits=2, n_repeats=2, n_jobs=1):
         mlflow.create_experiment(experiment)
 
     experiment_id = mlflow.get_experiment_by_name(experiment).experiment_id
+    mlflow.lightgbm.autolog()
     with mlflow.start_run(experiment_id=experiment_id) as run:
         cv = RepeatedKFold(n_splits=n_splits,
                            n_repeats=n_repeats,
@@ -30,12 +31,6 @@ def run(model, X, y, metrics, experiment, n_splits=2, n_repeats=2, n_jobs=1):
         for k, v in results.items():
             for i in range(len(v)):
                 if k == "estimator":
-                    model_name = "model_{}.pkl".format(i)
-                    with open(model_name, 'wb') as f:
-                        pickle.dump(v[i], f)
-
                     mlflow.log_params(v[i].get_params(deep=True))
-                    mlflow.log_artifact(model_name)
-                    remove(model_name)
                 else:
                     mlflow.log_metric(k, v[i])

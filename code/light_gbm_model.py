@@ -1,5 +1,6 @@
 import gc
 import pickle
+from os.path import exists
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,7 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics import make_scorer
 from sklearn.preprocessing import LabelBinarizer
 
-from preprocessing import fit_and_save_vectorizer
+from preprocessing import fit_and_save_vectorizer, split_cat
 
 pd.set_option('max_colwidth', 200)
 
@@ -20,22 +21,31 @@ def rmsle(y, y_pred):
     return np.sqrt(np.mean(np.power(np.log1p(y) - np.log1p(y_pred), 2)))
 
 
-# Create split_cat() function that returns cateogires (dae, jung, so) called by "apply lambda"
-def split_cat(category_name):
-    try:
-        return category_name.split('/')
-    except:
-        return ['Other_Null', 'Other_Null', 'Other_Null']
-
-
 class LightGBMModel(BaseEstimator, RegressorMixin):
-    def __init__(self, experiment="LightGBM", **kwarg):
+    def __init__(self, experiment="LightGBM", quick_preprocess=False, **kwarg):
         self.experiment = experiment
         self.model = LGBMRegressor(n_estimators=200,
                                    learning_rate=0.5,
                                    num_leaves=125,
                                    random_state=42)
         self.eval_metric = make_scorer(self.score, greater_is_better=False)
+        self.vectorizers = {}
+        for col in [
+                "name", "item_description", "brand_name", "item_condition_id",
+                "shipping", "cat_dae", "cat_jung", "cat_so"
+        ]:
+            if not exists(
+                    "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(col)):
+                if quick_preprocess:
+                    self.preprocess_light_gbm(1000)
+                else:
+                    self.preprocess_light_gbm()
+
+            with open(
+                    "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(col),
+                    'rb') as f:
+                self.vectorizers[col] = pickle.load(f)
+
         self.metrics = {
             "Root mean squared log error": self.eval_metric,
             "Explained variance": "explained_variance",
@@ -49,10 +59,14 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
         }
 
     def fit(self, X, y):
+        X = self.apply_preprocessing(X)
+        y = np.log1p(y)
         self.model.fit(X, y)
 
     def predict(self, X):
-        return self.model.predict(X)
+        X = self.apply_preprocessing(X)
+        y_preds = self.model.predict(X)
+        return np.expm1(y_preds)
 
     def score(self, y, y_pred):
         return -1 * self.evaluate_org_price(y, y_pred)
@@ -72,48 +86,27 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
 
     def preprocess_light_gbm(self, nrows=-1):
         if nrows > 0:
-            mercari_df = pd.read_csv('./data/train.tsv', sep='\t', nrows=nrows)
+            mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=nrows)
         else:
-            mercari_df = pd.read_csv('./data/train.tsv', sep='\t')
+            mercari_df = pd.read_csv('data/train.tsv', sep='\t')
 
-        # Calls split_cat() function above and create cat_dae, cat_jung, cat_so columns in mercari_df
-        mercari_df['category_list'] = mercari_df['category_name'].apply(
-            lambda x: split_cat(x))
-        mercari_df['category_list'].head()
-
-        mercari_df['cat_dae'] = mercari_df['category_list'].apply(
-            lambda x: x[0])
-        mercari_df['cat_jung'] = mercari_df['category_list'].apply(
-            lambda x: x[1])
-        mercari_df['cat_so'] = mercari_df['category_list'].apply(
-            lambda x: x[2])
-
-        mercari_df.drop('category_list', axis=1, inplace=True)
-
-        # Handling Null Values
-        mercari_df['brand_name'] = mercari_df['brand_name'].fillna(
-            value='Other_Null')
-        mercari_df['category_name'] = mercari_df['category_name'].fillna(
-            value='Other_Null')
-        mercari_df['item_description'] = mercari_df['item_description'].fillna(
-            value='Other_Null')
-
+        mercari_df = self.common_preprocessing(mercari_df)
         gc.collect()
 
         print("Vectorizing name")
         # Convert "name" with feature vectorization
-        fit_and_save_vectorizer(mercari_df["name"],
-                                CountVectorizer(max_features=30000),
-                                "data/light_gbm/name_count_vectorizer")
+        self.vectorizers["name"] = fit_and_save_vectorizer(
+            mercari_df["name"], CountVectorizer(max_features=30000),
+            "data/light_gbm/name_vectorizer")
 
         print("Vectorizing item_description")
         # Convert "item_description" with feature vectorization
-        fit_and_save_vectorizer(
+        self.vectorizers["item_description"] = fit_and_save_vectorizer(
             mercari_df['item_description'],
             TfidfVectorizer(max_features=50000,
                             ngram_range=(1, 3),
                             stop_words='english'),
-            "data/light_gbm/item_description_tfidf_vectorizer")
+            "data/light_gbm/item_description_vectorizer")
 
         # Convert each feature (brand_name, item_condition_id, shipping) to one-hot-encoded sparse matrix
         # Convert each feature (cat_dae, cat_jung, cat_so) to one-hot-encoded spare matrix
@@ -122,42 +115,35 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
                 "cat_jung", "cat_so"
         ]:
             print("Vectorizing {}".format(col))
-            fit_and_save_vectorizer(
+            self.vectorizers[col] = fit_and_save_vectorizer(
                 mercari_df[col], LabelBinarizer(sparse_output=True),
-                "data/light_gbm/{}_label_binarizer".format(col))
+                "data/light_gbm/{}_vectorizer".format(col))
 
-    def get_dataset(self, nrows=-1):
-        if nrows > 0:
-            mercari_df = pd.read_csv('./data/train.tsv',
-                                     sep='\t',
-                                     usecols=["train_id", "price"],
-                                     nrows=nrows)
-        else:
-            mercari_df = pd.read_csv('./data/train.tsv',
-                                     sep='\t',
-                                     usecols=["train_id", "price"])
+    def common_preprocessing(self, X):
+        # Calls split_cat() function above and create cat_dae, cat_jung, cat_so columns in X
+        X['category_list'] = X['category_name'].apply(lambda x: split_cat(x))
 
-        mercari_df['price'] = np.log1p(mercari_df['price'])
-        X_name = pickle.load(
-            open("data/name_count_vectorizer/X_vectorized.pkl", "rb"))
-        X_descp = pickle.load(
-            open("data/item_description_tfidf_vectorizer/X_vectorized.pkl",
-                 "rb"))
-        X_brand = pickle.load(
-            open("data/brand_name_label_binarizer/X_vectorized.pkl", "rb"))
-        X_item_cond_id = pickle.load(
-            open("data/item_condition_id_label_binarizer/X_vectorized.pkl",
-                 "rb"))
-        X_shipping = pickle.load(
-            open("data/shipping_label_binarizer/X_vectorized.pkl", "rb"))
-        X_cat_dae = pickle.load(
-            open("data/cat_dae_label_binarizer/X_vectorized.pkl", "rb"))
-        X_cat_jung = pickle.load(
-            open("data/cat_jung_label_binarizer/X_vectorized.pkl", "rb"))
-        X_cat_so = pickle.load(
-            open("data/cat_so_label_binarizer/X_vectorized.pkl", "rb"))
-        sparse_matrix_list = (X_descp, X_name, X_brand, X_item_cond_id,
-                              X_shipping, X_cat_dae, X_cat_jung, X_cat_so)
+        X['cat_dae'] = X['category_list'].apply(lambda x: x[0])
+        X['cat_jung'] = X['category_list'].apply(lambda x: x[1])
+        X['cat_so'] = X['category_list'].apply(lambda x: x[2])
+
+        X.drop('category_list', axis=1, inplace=True)
+
+        # Handling Null Values
+        X['brand_name'] = X['brand_name'].fillna(value='Other_Null')
+        X['category_name'] = X['category_name'].fillna(value='Other_Null')
+        X['item_description'] = X['item_description'].fillna(
+            value='Other_Null')
+        return X
+
+    def apply_preprocessing(self, X):
+        X = self.common_preprocessing(X)
+        # X['price'] = np.log1p(X['price'])
+
+        sparse_matrix_list = []
+        for col, vectorizer in self.vectorizers.items():
+            sparse_matrix_list.append(vectorizer.transform(X[col]))
+
         X = hstack(sparse_matrix_list).tocsr()
-        y = mercari_df['price']
-        return X, y
+        # y = X['price']
+        return X

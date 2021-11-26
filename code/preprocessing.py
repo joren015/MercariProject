@@ -20,20 +20,12 @@ def fit_and_save_vectorizer(X, vectorizer, folder_name, non_sklearn=False):
         vectorizer.fit_on_texts(X)
         with open("{}/vectorizer.pkl".format(folder_name), 'wb') as f:
             pickle.dump(vectorizer, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-        return vectorizer, None
     else:
-        X_vectorized = vectorizer.fit_transform(X)
+        vectorizer.fit(X)
         with open("{}/vectorizer.pkl".format(folder_name), 'wb') as f:
             pickle.dump(vectorizer, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-        with open("{}/X.pkl".format(folder_name), 'wb') as f:
-            pickle.dump(X, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-        with open("{}/X_vectorized.pkl".format(folder_name), 'wb') as f:
-            pickle.dump(X_vectorized, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-        return vectorizer, X_vectorized
+    return vectorizer
 
 
 def load_and_apply_vectorizer(vectorizer_path, col):
