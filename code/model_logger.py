@@ -1,6 +1,3 @@
-import pickle
-from os import remove
-
 import mlflow
 import numpy as np
 from sklearn.model_selection import RepeatedKFold, cross_validate
@@ -13,7 +10,6 @@ def run(model, X, y, metrics, experiment, n_splits=2, n_repeats=2, n_jobs=1):
         mlflow.create_experiment(experiment)
 
     experiment_id = mlflow.get_experiment_by_name(experiment).experiment_id
-    mlflow.lightgbm.autolog()
     with mlflow.start_run(experiment_id=experiment_id) as run:
         cv = RepeatedKFold(n_splits=n_splits,
                            n_repeats=n_repeats,
