@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATA_FOLDER=code/data
+DATA_FOLDER=data
 
 if [ ! -d "$DATA_FOLDER" ] 
 then
