@@ -6,21 +6,20 @@ pd.set_option('max_colwidth', 200)
 
 if __name__ == "__main__":
     model_type = "light_gbm"
-    train = pd.read_table("data/train.tsv")
+    mercari_df = pd.read_csv('data/train.tsv', sep='\t')
+    X = mercari_df[[x for x in mercari_df.columns if x != "price"]]
+    y = mercari_df["price"]
 
     print("Preprocessing dataset")
     if model_type == "light_gbm":
         from light_gbm_model import LightGBMModel
-        model = LightGBMModel()
-        mercari_df = pd.read_csv('data/train.tsv', sep='\t')
-        X = mercari_df[[x for x in mercari_df.columns if x != "price"]]
-        y = mercari_df["price"]
+        model = LightGBMModel(quick_preprocess=True)
         run(model, X, y, model.metrics, experiment=model.experiment, n_jobs=1)
     else:
         from nn_model import NNModel
         model = NNModel()
         # model.preprocess()
-        X, y = model.apply_preprocessing(train)
+        # X, y = model.apply_preprocessing(train)
         # run(model, X, y, model.metrics, experiment=model.experiment, n_jobs=1)
 
     # model.preprocess()
