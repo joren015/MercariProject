@@ -1,12 +1,16 @@
+import gc
 import pickle
-from os import makedirs
 
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor
 from scipy.sparse import hstack
 from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics import make_scorer
+from sklearn.preprocessing import LabelBinarizer
+
+from preprocessing import fit_and_save_vectorizer
 
 pd.set_option('max_colwidth', 200)
 
@@ -22,21 +26,6 @@ def split_cat(category_name):
         return category_name.split('/')
     except:
         return ['Other_Null', 'Other_Null', 'Other_Null']
-
-
-def fit_and_save_vectorizer(X, vectorizer, folder_name):
-    makedirs(folder_name, exist_ok=True)
-    X_vectorized = vectorizer.fit_transform(X)
-    with open("{}/vectorizer.pkl".format(folder_name), 'wb') as f:
-        pickle.dump(vectorizer, f)
-
-    with open("{}/X.pkl".format(folder_name), 'wb') as f:
-        pickle.dump(X, f)
-
-    with open("{}/X_vectorized.pkl".format(folder_name), 'wb') as f:
-        pickle.dump(X_vectorized, f)
-
-    return vectorizer, X_vectorized
 
 
 class LightGBMModel(BaseEstimator, RegressorMixin):
@@ -80,6 +69,62 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
         # rmsle로 RMSLE 값 추출
         rmsle_result = rmsle(y_test_exmpm, preds_exmpm)
         return rmsle_result
+
+    def preprocess_light_gbm(self, nrows=-1):
+        if nrows > 0:
+            mercari_df = pd.read_csv('./data/train.tsv', sep='\t', nrows=nrows)
+        else:
+            mercari_df = pd.read_csv('./data/train.tsv', sep='\t')
+
+        # Calls split_cat() function above and create cat_dae, cat_jung, cat_so columns in mercari_df
+        mercari_df['category_list'] = mercari_df['category_name'].apply(
+            lambda x: split_cat(x))
+        mercari_df['category_list'].head()
+
+        mercari_df['cat_dae'] = mercari_df['category_list'].apply(
+            lambda x: x[0])
+        mercari_df['cat_jung'] = mercari_df['category_list'].apply(
+            lambda x: x[1])
+        mercari_df['cat_so'] = mercari_df['category_list'].apply(
+            lambda x: x[2])
+
+        mercari_df.drop('category_list', axis=1, inplace=True)
+
+        # Handling Null Values
+        mercari_df['brand_name'] = mercari_df['brand_name'].fillna(
+            value='Other_Null')
+        mercari_df['category_name'] = mercari_df['category_name'].fillna(
+            value='Other_Null')
+        mercari_df['item_description'] = mercari_df['item_description'].fillna(
+            value='Other_Null')
+
+        gc.collect()
+
+        print("Vectorizing name")
+        # Convert "name" with feature vectorization
+        fit_and_save_vectorizer(mercari_df["name"],
+                                CountVectorizer(max_features=30000),
+                                "data/light_gbm/name_count_vectorizer")
+
+        print("Vectorizing item_description")
+        # Convert "item_description" with feature vectorization
+        fit_and_save_vectorizer(
+            mercari_df['item_description'],
+            TfidfVectorizer(max_features=50000,
+                            ngram_range=(1, 3),
+                            stop_words='english'),
+            "data/light_gbm/item_description_tfidf_vectorizer")
+
+        # Convert each feature (brand_name, item_condition_id, shipping) to one-hot-encoded sparse matrix
+        # Convert each feature (cat_dae, cat_jung, cat_so) to one-hot-encoded spare matrix
+        for col in [
+                "brand_name", "item_condition_id", "shipping", "cat_dae",
+                "cat_jung", "cat_so"
+        ]:
+            print("Vectorizing {}".format(col))
+            fit_and_save_vectorizer(
+                mercari_df[col], LabelBinarizer(sparse_output=True),
+                "data/light_gbm/{}_label_binarizer".format(col))
 
     def get_dataset(self, nrows=-1):
         if nrows > 0:
