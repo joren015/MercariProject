@@ -3,9 +3,9 @@ import pandas as pd
 from model_logger import run
 
 pd.set_option('max_colwidth', 200)
+model_type = "NN"
 
 if __name__ == "__main__":
-    model_type = "light_gbm"
     mercari_df = pd.read_csv('data/train.tsv', sep='\t')
     X = mercari_df[[x for x in mercari_df.columns if x != "price"]]
     y = mercari_df["price"]
@@ -13,11 +13,12 @@ if __name__ == "__main__":
     print("Preprocessing dataset")
     if model_type == "light_gbm":
         from light_gbm_model import LightGBMModel
-        model = LightGBMModel(quick_preprocess=True)
+        model = LightGBMModel()
         run(model, X, y, model.metrics, experiment=model.experiment, n_jobs=1)
     else:
         from nn_model import NNModel
         model = NNModel()
+        model.my_evaluate(X, y)
         # model.preprocess()
         # X, y = model.apply_preprocessing(train)
         # run(model, X, y, model.metrics, experiment=model.experiment, n_jobs=1)
