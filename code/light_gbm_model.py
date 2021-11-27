@@ -28,7 +28,6 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
                                    learning_rate=0.5,
                                    num_leaves=125,
                                    random_state=42)
-        self.eval_metric = make_scorer(self.score, greater_is_better=False)
         self.vectorizers = {}
         for col in [
                 "name", "item_description", "brand_name", "item_condition_id",
@@ -37,15 +36,16 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
             if not exists(
                     "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(col)):
                 if quick_preprocess:
-                    self.preprocess_light_gbm(1000)
+                    self.preprocess(10000)
                 else:
-                    self.preprocess_light_gbm()
+                    self.preprocess()
 
             with open(
                     "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(col),
                     'rb') as f:
                 self.vectorizers[col] = pickle.load(f)
 
+        self.eval_metric = make_scorer(self.score, greater_is_better=False)
         self.metrics = {
             "Root mean squared log error": self.eval_metric,
             "Explained variance": "explained_variance",
@@ -77,14 +77,14 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
     def evaluate_org_price(self, y_test, preds):
         # In the original dataset, we need to convert the log1p back to its original form.
         # 원본 데이터는 log1p로 변환되었으므로 exmpm1으로 원복 필요.
-        preds_exmpm = np.expm1(preds)
-        y_test_exmpm = np.expm1(y_test)
+        # preds_exmpm = np.expm1(preds)
+        # y_test_exmpm = np.expm1(y_test)
 
         # rmsle로 RMSLE 값 추출
-        rmsle_result = rmsle(y_test_exmpm, preds_exmpm)
+        rmsle_result = rmsle(y_test, preds)
         return rmsle_result
 
-    def preprocess_light_gbm(self, nrows=-1):
+    def preprocess(self, nrows=-1):
         if nrows > 0:
             mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=nrows)
         else:
