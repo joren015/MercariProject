@@ -406,12 +406,17 @@ class NNModel(BaseEstimator, RegressorMixin):
                 print(len(y_train))
                 print(len(X_test))
                 print(len(y_test))
+                mlflow.log_params({
+                    "train_size": len(y_train),
+                    "test_size": len(y_test)
+                })
 
                 self.fit(X_train, y_train)
                 X_test = self.apply_preprocessing(X_test)
                 y_test = np.log1p(y_test)
                 results = self.model.evaluate(X_test, y_test, return_dict=True)
-                print(results)
+                results = {"test_{}".format(k): v for k, v in results.items()}
+                mlflow.log_metrics(results)
 
             # results = cross_validate(self.model,
             #                          X,
