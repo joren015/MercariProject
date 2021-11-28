@@ -413,7 +413,7 @@ class NNModel(BaseEstimator, RegressorMixin):
 
                 self.fit(X_train, y_train)
                 X_test = self.apply_preprocessing(X_test)
-                # y_test = np.log1p(y_test)
+                y_test = np.log1p(y_test)
                 results = self.model.evaluate(X_test,
                                               y_test,
                                               batch_size=1000,
