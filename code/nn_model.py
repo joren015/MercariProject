@@ -160,8 +160,8 @@ class NNModel(BaseEstimator, RegressorMixin):
         return np.expm1(y_preds)
 
     def rmsle_cust(self, y_true, y_pred):
-        y_true = np.expm1(y_true)
-        y_pred = np.expm1(y_pred)
+        y_true = K.exp(y_true)
+        y_pred = K.epx(y_pred)
         first_log = K.log(K.clip(y_pred, K.epsilon(), None) + 1.)
         second_log = K.log(K.clip(y_true, K.epsilon(), None) + 1.)
         return K.sqrt(K.mean(K.square(first_log - second_log), axis=-1))
