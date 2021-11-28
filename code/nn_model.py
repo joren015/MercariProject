@@ -172,6 +172,16 @@ class NNModel(BaseEstimator, RegressorMixin):
     def get_params(self, deep=True):
         return self.model.get_config()
 
+    def reset_model(
+        self,
+        MAX_TEXT=259088,
+        MAX_CATEGORY=1311,
+        MAX_BRAND=5290,
+        MAX_CONDITION=6,
+    ):
+        self.model = self.get_model(MAX_TEXT, MAX_CATEGORY, MAX_BRAND,
+                                    MAX_CONDITION)
+
     def common_preprocessing(self, dataset):
         dataset.category_name.fillna(value="missing", inplace=True)
         dataset.brand_name.fillna(value="missing", inplace=True)
@@ -397,6 +407,7 @@ class NNModel(BaseEstimator, RegressorMixin):
                                n_repeats=n_repeats,
                                random_state=42)
             for train_index, test_index in cv.split(X):
+                self.reset_model()
                 X_train, X_test = X.loc[train_index], X.loc[test_index]
                 y_train, y_test = y.loc[train_index], y.loc[test_index]
                 # X_train, X_test = {k: v[train_index]
