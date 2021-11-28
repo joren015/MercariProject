@@ -402,11 +402,13 @@ class NNModel(BaseEstimator, RegressorMixin):
         experiment_id = mlflow.get_experiment_by_name(
             self.experiment).experiment_id
         mlflow.keras.autolog()
+        i = 0
         with mlflow.start_run(experiment_id=experiment_id) as run:
             cv = RepeatedKFold(n_splits=n_splits,
                                n_repeats=n_repeats,
                                random_state=42)
             for train_index, test_index in cv.split(X):
+                print("ITERATION: {}".format(i))
                 self.reset_model()
                 X_train, X_test = X.loc[train_index], X.loc[test_index]
                 y_train, y_test = y.loc[train_index], y.loc[test_index]
@@ -415,14 +417,6 @@ class NNModel(BaseEstimator, RegressorMixin):
                 #                    }, {k: v[test_index]
                 #                        for k, v in X.items()}
                 # y_train, y_test = y[train_index], y[test_index]
-                print(len(X_train))
-                print(len(y_train))
-                print(len(X_test))
-                print(len(y_test))
-                mlflow.log_params({
-                    "train_size": len(y_train),
-                    "test_size": len(y_test)
-                })
 
                 self.fit(X_train, y_train)
                 X_test = self.apply_preprocessing(X_test)
@@ -433,6 +427,7 @@ class NNModel(BaseEstimator, RegressorMixin):
                                               return_dict=True)
                 results = {"test_{}".format(k): v for k, v in results.items()}
                 mlflow.log_metrics(results)
+                i += 1
 
             # results = cross_validate(self.model,
             #                          X,
