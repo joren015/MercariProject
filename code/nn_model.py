@@ -414,7 +414,10 @@ class NNModel(BaseEstimator, RegressorMixin):
                 self.fit(X_train, y_train)
                 X_test = self.apply_preprocessing(X_test)
                 # y_test = np.log1p(y_test)
-                results = self.model.evaluate(X_test, y_test, return_dict=True)
+                results = self.model.evaluate(X_test,
+                                              y_test,
+                                              batch_size=1000,
+                                              return_dict=True)
                 results = {"test_{}".format(k): v for k, v in results.items()}
                 mlflow.log_metrics(results)
 
