@@ -14,20 +14,20 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.metrics import make_scorer
-from sklearn.model_selection import RepeatedKFold, cross_validate
+from sklearn.model_selection import RepeatedKFold
 from sklearn.preprocessing import LabelEncoder
 from keras.metrics import LogCoshError, CosineSimilarity, MeanSquaredLogarithmicError, MeanAbsolutePercentageError, MeanAbsoluteError, RootMeanSquaredError, MeanSquaredError
 
 from preprocessing import fit_and_save_vectorizer
+from train import rmsle
 
 pd.set_option('max_colwidth', 200)
 
-
-def rmsle(y, y_pred):
-    assert len(y) == len(y_pred)
-    to_sum = [(math.log(y_pred[i] + 1) - math.log(y[i] + 1))**2.0
-              for i, pred in enumerate(y_pred)]
-    return (sum(to_sum) * (1.0 / len(y)))**0.5
+# def rmsle(y, y_pred):
+#     assert len(y) == len(y_pred)
+#     to_sum = [(math.log(y_pred[i] + 1) - math.log(y[i] + 1))**2.0
+#               for i, pred in enumerate(y_pred)]
+#     return (sum(to_sum) * (1.0 / len(y)))**0.5
 
 
 def get_callbacks(filepath, patience=2):
@@ -413,7 +413,7 @@ class NNModel(BaseEstimator, RegressorMixin):
 
                 self.fit(X_train, y_train)
                 X_test = self.apply_preprocessing(X_test)
-                y_test = np.log1p(y_test)
+                # y_test = np.log1p(y_test)
                 results = self.model.evaluate(X_test, y_test, return_dict=True)
                 results = {"test_{}".format(k): v for k, v in results.items()}
                 mlflow.log_metrics(results)

@@ -12,13 +12,9 @@ from sklearn.metrics import make_scorer
 from sklearn.preprocessing import LabelBinarizer
 
 from preprocessing import fit_and_save_vectorizer, split_cat
+from train import rmsle
 
 pd.set_option('max_colwidth', 200)
-
-
-def rmsle(y, y_pred):
-    # underflow, overflow를 막기 위해 log가 아닌 log1p로 rmsle 계산
-    return np.sqrt(np.mean(np.power(np.log1p(y) - np.log1p(y_pred), 2)))
 
 
 class LightGBMModel(BaseEstimator, RegressorMixin):
@@ -69,20 +65,10 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
         return np.expm1(y_preds)
 
     def score(self, y, y_pred):
-        return -1 * self.evaluate_org_price(y, y_pred)
+        return -1 * rmsle(y, y_pred)
 
     def get_params(self, deep=True):
         return self.model.get_params(deep=deep)
-
-    def evaluate_org_price(self, y_test, preds):
-        # In the original dataset, we need to convert the log1p back to its original form.
-        # 원본 데이터는 log1p로 변환되었으므로 exmpm1으로 원복 필요.
-        # preds_exmpm = np.expm1(preds)
-        # y_test_exmpm = np.expm1(y_test)
-
-        # rmsle로 RMSLE 값 추출
-        rmsle_result = rmsle(y_test, preds)
-        return rmsle_result
 
     def preprocess(self, nrows=-1):
         if nrows > 0:

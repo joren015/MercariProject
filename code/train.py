@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from model_logger import run
@@ -5,8 +6,14 @@ from model_logger import run
 pd.set_option('max_colwidth', 200)
 model_type = "NN"
 
+
+def rmsle(y, y_pred):
+    # underflow, overflow를 막기 위해 log가 아닌 log1p로 rmsle 계산
+    return np.sqrt(np.mean(np.power(np.log1p(y) - np.log1p(y_pred), 2)))
+
+
 if __name__ == "__main__":
-    mercari_df = pd.read_csv('data/train.tsv', sep='\t')
+    mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=100)
     X = mercari_df[[x for x in mercari_df.columns if x != "price"]]
     y = mercari_df["price"]
 
