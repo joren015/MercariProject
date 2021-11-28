@@ -13,7 +13,7 @@ def rmsle(y, y_pred):
 
 
 if __name__ == "__main__":
-    mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=100)
+    mercari_df = pd.read_csv('data/train.tsv', sep='\t')
     X = mercari_df[[x for x in mercari_df.columns if x != "price"]]
     y = mercari_df["price"]
 
