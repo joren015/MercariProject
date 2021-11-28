@@ -381,7 +381,7 @@ class NNModel(BaseEstimator, RegressorMixin):
 
         return X
 
-    def my_evaluate(self, X, y, n_splits=2, n_repeats=2, n_jobs=1):
+    def my_evaluate(self, X, y, n_splits=10, n_repeats=5, n_jobs=1):
         n_jobs = 1
         experiment_names = [x.name for x in mlflow.list_experiments()]
         if self.experiment not in experiment_names:
@@ -395,9 +395,8 @@ class NNModel(BaseEstimator, RegressorMixin):
                                n_repeats=n_repeats,
                                random_state=42)
             for train_index, test_index in cv.split(X):
-                print("TRAIN:", train_index, "TEST:", test_index)
-                X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-                y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+                X_train, X_test = X.loc[train_index], X.loc[test_index]
+                y_train, y_test = y.loc[train_index], y.loc[test_index]
                 # X_train, X_test = {k: v[train_index]
                 #                    for k, v in X.items()
                 #                    }, {k: v[test_index]
