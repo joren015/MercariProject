@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.model_selection import RepeatedKFold, cross_validate
 
 
-def run(model, X, y, metrics, experiment, n_splits=2, n_repeats=2, n_jobs=1):
+def run(model, X, y, metrics, experiment, n_splits=10, n_repeats=5, n_jobs=1):
     n_jobs = 1
     experiment_names = [x.name for x in mlflow.list_experiments()]
     if experiment not in experiment_names:
