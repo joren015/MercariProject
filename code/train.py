@@ -4,7 +4,7 @@ import pandas as pd
 from model_logger import run
 
 pd.set_option('max_colwidth', 200)
-model_type = "NN"
+model_type = "light_gbm"
 
 
 def rmsle(y, y_pred):

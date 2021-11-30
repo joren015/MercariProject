@@ -36,10 +36,9 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
                 else:
                     self.preprocess()
 
-            with open(
-                    "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(col),
-                    'rb') as f:
-                self.vectorizers[col] = pickle.load(f)
+            self.vectorizers[
+                col] = "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(
+                    col)
 
         self.eval_metric = make_scorer(self.score, greater_is_better=False)
         self.metrics = {
@@ -127,8 +126,11 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
         # X['price'] = np.log1p(X['price'])
 
         sparse_matrix_list = []
-        for col, vectorizer in self.vectorizers.items():
-            sparse_matrix_list.append(vectorizer.transform(X[col]))
+        for col, v in self.vectorizers.items():
+            with open(v, 'rb') as f:
+                vectorizer = pickle.load(f)
+                sparse_matrix_list.append(vectorizer.transform(X[col]))
+                del vectorizer
 
         X = hstack(sparse_matrix_list).tocsr()
         # y = X['price']
