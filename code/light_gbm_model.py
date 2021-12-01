@@ -61,11 +61,6 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
         return self.model.get_params(deep=deep)
 
     def preprocess(self, X):
-        # if nrows > 0:
-        #     mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=nrows)
-        # else:
-        #     mercari_df = pd.read_csv('data/train.tsv', sep='\t')
-
         df = self.common_preprocessing(X)
 
         print("Vectorizing name")
