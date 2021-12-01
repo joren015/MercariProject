@@ -267,9 +267,6 @@ class NNModel(BaseEstimator, RegressorMixin):
             print(train["item_desc"].shape[1])
             print(train["num_vars"].shape[1])
 
-        if include_analysis:
-            print(train)
-
         return MAX_TEXT, MAX_CATEGORY, MAX_BRAND, MAX_CONDITION
 
     def apply_preprocessing(self, X, MAX_NAME_SEQ=10, MAX_ITEM_DESC_SEQ=75):
@@ -277,10 +274,14 @@ class NNModel(BaseEstimator, RegressorMixin):
         print(self.vectorizers["category_name"])
         with open(self.vectorizers["category_name"], 'rb') as f:
             vectorizer = pickle.load(f)
+            X.loc[~X["category_name"].isin(vectorizer.classes_),
+                  "category_name"] = "missing"
             X.category_name = vectorizer.transform(X.category_name)
 
         with open(self.vectorizers["brand_name"], 'rb') as f:
             vectorizer = pickle.load(f)
+            X.loc[~X["brand_name"].isin(vectorizer.classes_),
+                  "brand_name"] = "missing"
             X.brand_name = vectorizer.transform(X.brand_name)
 
         with open(self.vectorizers["item_description_and_name"], 'rb') as f:

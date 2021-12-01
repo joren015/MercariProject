@@ -68,7 +68,7 @@ if __name__ == "__main__":
     if model_type == "light_gbm":
         from light_gbm_model import LightGBMModel
         model = LightGBMModel()
-        run(model, X, y, model.metrics, experiment=model.experiment, n_jobs=1)
+        model.my_evaluate(X, y)
     elif model_type == "NN":
         from nn_model import NNModel
         model = NNModel()
