@@ -9,7 +9,11 @@ pd.set_option('max_colwidth', 200)
 # Create split_cat() function that returns cateogires (dae, jung, so) called by "apply lambda"
 def split_cat(category_name):
     try:
-        return category_name.split('/')
+        split_categories = category_name.split('/')
+        while len(split_categories) < 3:
+            split_categories.append("Other_Null")
+
+        return split_categories
     except:
         return ['Other_Null', 'Other_Null', 'Other_Null']
 

@@ -1,6 +1,5 @@
-import gc
 import pickle
-from os.path import exists
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
@@ -18,28 +17,14 @@ pd.set_option('max_colwidth', 200)
 
 
 class LightGBMModel(BaseEstimator, RegressorMixin):
-    def __init__(self, experiment="LightGBM", quick_preprocess=False, **kwarg):
+    def __init__(self, experiment="LightGBM", **kwarg):
         self.experiment = experiment
         self.model = LGBMRegressor(n_estimators=200,
                                    learning_rate=0.5,
                                    num_leaves=125,
                                    random_state=42)
         self.vectorizers = {}
-        for col in [
-                "name", "item_description", "brand_name", "item_condition_id",
-                "shipping", "cat_dae", "cat_jung", "cat_so"
-        ]:
-            if not exists(
-                    "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(col)):
-                if quick_preprocess:
-                    self.preprocess(10000)
-                else:
-                    self.preprocess()
-
-            self.vectorizers[
-                col] = "data/light_gbm/{}_vectorizer/vectorizer.pkl".format(
-                    col)
-
+        self.vectorizer_guid = str(uuid4()).replace('-', '_')
         self.eval_metric = make_scorer(self.score, greater_is_better=False)
         self.metrics = {
             "Root mean squared log error": self.eval_metric,
@@ -54,6 +39,12 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
         }
 
     def fit(self, X, y):
+        self.model = LGBMRegressor(n_estimators=200,
+                                   learning_rate=0.5,
+                                   num_leaves=125,
+                                   random_state=42)
+        self.vectorizer_guid = str(uuid4()).replace('-', '_')
+        self.preprocess(X)
         X = self.apply_preprocessing(X)
         y = np.log1p(y)
         self.model.fit(X, y)
@@ -69,29 +60,35 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
     def get_params(self, deep=True):
         return self.model.get_params(deep=deep)
 
-    def preprocess(self, nrows=-1):
-        if nrows > 0:
-            mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=nrows)
-        else:
-            mercari_df = pd.read_csv('data/train.tsv', sep='\t')
+    def preprocess(self, X):
+        # if nrows > 0:
+        #     mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=nrows)
+        # else:
+        #     mercari_df = pd.read_csv('data/train.tsv', sep='\t')
 
-        mercari_df = self.common_preprocessing(mercari_df)
-        gc.collect()
+        df = self.common_preprocessing(X)
 
         print("Vectorizing name")
         # Convert "name" with feature vectorization
-        self.vectorizers["name"] = fit_and_save_vectorizer(
-            mercari_df["name"], CountVectorizer(max_features=30000),
-            "data/light_gbm/name_vectorizer")
+        fit_and_save_vectorizer(
+            df["name"], CountVectorizer(max_features=30000),
+            "data/light_gbm/{}/name_vectorizer".format(self.vectorizer_guid))
+        self.vectorizers[
+            "name"] = "data/light_gbm/{}/name_vectorizer/vectorizer.pkl".format(
+                self.vectorizer_guid)
 
         print("Vectorizing item_description")
         # Convert "item_description" with feature vectorization
-        self.vectorizers["item_description"] = fit_and_save_vectorizer(
-            mercari_df['item_description'],
+        fit_and_save_vectorizer(
+            df['item_description'],
             TfidfVectorizer(max_features=50000,
                             ngram_range=(1, 3),
                             stop_words='english'),
-            "data/light_gbm/item_description_vectorizer")
+            "data/light_gbm/{}/item_description_vectorizer".format(
+                self.vectorizer_guid))
+        self.vectorizers[
+            "item_description"] = "data/light_gbm/{}/item_description_vectorizer/vectorizer.pkl".format(
+                self.vectorizer_guid)
 
         # Convert each feature (brand_name, item_condition_id, shipping) to one-hot-encoded sparse matrix
         # Convert each feature (cat_dae, cat_jung, cat_so) to one-hot-encoded spare matrix
@@ -100,9 +97,12 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
                 "cat_jung", "cat_so"
         ]:
             print("Vectorizing {}".format(col))
-            self.vectorizers[col] = fit_and_save_vectorizer(
-                mercari_df[col], LabelBinarizer(sparse_output=True),
-                "data/light_gbm/{}_vectorizer".format(col))
+            save_path = "data/light_gbm/{}/{}_vectorizer".format(
+                self.vectorizer_guid, col)
+            fit_and_save_vectorizer(df[col],
+                                    LabelBinarizer(sparse_output=True),
+                                    save_path)
+            self.vectorizers[col] = "{}/vectorizer.pkl".format(save_path)
 
     def common_preprocessing(self, X):
         # Calls split_cat() function above and create cat_dae, cat_jung, cat_so columns in X
@@ -123,15 +123,12 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
 
     def apply_preprocessing(self, X):
         X = self.common_preprocessing(X)
-        # X['price'] = np.log1p(X['price'])
 
         sparse_matrix_list = []
         for col, v in self.vectorizers.items():
             with open(v, 'rb') as f:
                 vectorizer = pickle.load(f)
                 sparse_matrix_list.append(vectorizer.transform(X[col]))
-                del vectorizer
 
         X = hstack(sparse_matrix_list).tocsr()
-        # y = X['price']
         return X
