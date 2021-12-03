@@ -1,6 +1,7 @@
 import pickle
 from uuid import uuid4
 
+import mlflow
 import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor
@@ -8,10 +9,11 @@ from scipy.sparse import hstack
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics import make_scorer
+from sklearn.model_selection import RepeatedKFold, cross_validate
 from sklearn.preprocessing import LabelBinarizer
 
-from preprocessing import fit_and_save_vectorizer, split_cat
-from train import rmsle
+from app.preprocessing import fit_and_save_vectorizer, split_cat
+from app.train import rmsle
 
 pd.set_option('max_colwidth', 200)
 
@@ -123,7 +125,43 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
         for col, v in self.vectorizers.items():
             with open(v, 'rb') as f:
                 vectorizer = pickle.load(f)
+                if col not in ["name", "item_description"]:
+                    if col in ["item_condition_id", "shipping"]:
+                        X.loc[~X[col].isin(vectorizer.classes_), col] = 0
+                    else:
+                        X.loc[~X[col].isin(vectorizer.classes_),
+                              col] = "Other_Null"
+
                 sparse_matrix_list.append(vectorizer.transform(X[col]))
 
         X = hstack(sparse_matrix_list).tocsr()
         return X
+
+    def my_evaluate(self, X, y, n_splits=10, n_repeats=5, n_jobs=1):
+        n_jobs = 1
+        experiment_names = [x.name for x in mlflow.list_experiments()]
+        if self.experiment not in experiment_names:
+            mlflow.create_experiment(self.experiment)
+
+        experiment_id = mlflow.get_experiment_by_name(
+            self.experiment).experiment_id
+        with mlflow.start_run(experiment_id=experiment_id) as run:
+            cv = RepeatedKFold(n_splits=n_splits,
+                               n_repeats=n_repeats,
+                               random_state=42)
+            results = cross_validate(self,
+                                     X,
+                                     y,
+                                     scoring=self.metrics,
+                                     cv=cv,
+                                     n_jobs=n_jobs,
+                                     return_estimator=True,
+                                     verbose=1)
+
+            results["fit_time"] = [np.double(x) for x in results["fit_time"]]
+            for k, v in results.items():
+                for i in range(len(v)):
+                    if k == "estimator":
+                        mlflow.log_params(v[i].get_params(deep=True))
+                    else:
+                        mlflow.log_metric(k, v[i])

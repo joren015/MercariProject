@@ -19,7 +19,7 @@ from sklearn.metrics import make_scorer
 from sklearn.model_selection import RepeatedKFold
 from sklearn.preprocessing import LabelEncoder
 
-from preprocessing import fit_and_save_vectorizer
+from app.preprocessing import fit_and_save_vectorizer
 
 pd.set_option('max_colwidth', 200)
 

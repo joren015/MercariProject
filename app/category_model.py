@@ -10,8 +10,8 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.metrics import make_scorer
 from sklearn.preprocessing import LabelBinarizer
 
-from preprocessing import fit_and_save_vectorizer
-from train import rmsle
+from app.preprocessing import fit_and_save_vectorizer
+from app.train import rmsle
 
 pd.set_option('max_colwidth', 200)
 
@@ -55,7 +55,9 @@ class CategoryModel(BaseEstimator, RegressorMixin):
     def fit(self, X):
         self.models = {}
         self.vectorizer_guid = str(uuid4()).replace('-', '_')
-        self.preprocess(X)
+        Xp = X.copy(deep=True)
+        self.preprocess(Xp)
+        del Xp
         X = self.apply_preprocessing(X)
         for category in self.trained_categories:
             print("Fitting {}".format(category))
@@ -282,6 +284,10 @@ class CategoryModel(BaseEstimator, RegressorMixin):
                 v = self.models[category]["vectorizers"][col]
                 with open(v, 'rb') as f:
                     vectorizer = pickle.load(f)
+                    if col != "item_description":
+                        X.loc[~X[col].isin(vectorizer.classes_),
+                              col] = "Other_Null"
+
                     sparse_matrix_list.append(vectorizer.transform(df[col]))
 
             sparse_matrix_dict[category] = {

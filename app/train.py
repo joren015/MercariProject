@@ -8,10 +8,10 @@ import pandas as pd
 # from sklearn.model_selection import train_test_split
 # from sklearn.preprocessing import LabelBinarizer
 
-from model_logger import run
+# from app.model_logger import run
 
 pd.set_option('max_colwidth', 200)
-model_type = "NN"
+model_type = "light_gbm"
 
 
 def rmsle(y, y_pred):
@@ -59,22 +59,23 @@ def rmsle(y, y_pred):
 
 #     return preds, Y_price
 
-if __name__ == "__main__":
-    mercari_df = pd.read_csv('data/train.tsv', sep='\t')
+
+def main():
+    mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=1000)
     X = mercari_df
     y = mercari_df["price"]
 
     print("Preprocessing dataset")
     if model_type == "light_gbm":
-        from light_gbm_model import LightGBMModel
+        from app.light_gbm_model import LightGBMModel
         model = LightGBMModel()
         model.my_evaluate(X, y)
     elif model_type == "NN":
-        from nn_model import NNModel
+        from app.nn_model import NNModel
         model = NNModel()
         model.my_evaluate(X, y)
     else:
-        from category_model import CategoryModel
+        from app.category_model import CategoryModel
         model = CategoryModel()
         model.fit(mercari_df)
 
