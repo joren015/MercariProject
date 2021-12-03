@@ -11,7 +11,7 @@ def rmsle(y, y_pred):
 
 
 def main():
-    mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=100000)
+    mercari_df = pd.read_csv('data/train.tsv', sep='\t')
     X = mercari_df
     y = mercari_df["price"]
 
