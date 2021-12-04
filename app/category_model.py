@@ -250,6 +250,8 @@ class CategoryModel(BaseEstimator, RegressorMixin):
         return sparse_matrix_dict
 
     def my_evaluate(self, X, y, n_splits=10, n_repeats=5):
+        tracking_uri = "sqlite:///mlflow.db"
+        mlflow.set_tracking_uri(tracking_uri)
         experiment_names = [x.name for x in mlflow.list_experiments()]
         if self.experiment not in experiment_names:
             mlflow.create_experiment(self.experiment)
@@ -281,25 +283,24 @@ class CategoryModel(BaseEstimator, RegressorMixin):
                     total_lgbm_preds = np.concatenate(
                         [total_lgbm_preds, lgbm_preds])
                     total_yi = np.concatenate([total_yi, yi])
-                    logged_metrics = {}
-                    for k, metric in self.metrics.items():
-                        metric_key = re.sub(
-                            r'[^a-zA-Z0-9]', '',
-                            "{} split {} {}".format(category, i, k))
-                        if k == "Test Negative root mean squared error":
-                            value = metric(yi, lgbm_preds, squared=True)
-                        else:
-                            value = metric(yi, lgbm_preds)
+                    # logged_metrics = {}
+                    # for k, metric in self.metrics.items():
+                    #     metric_key = re.sub(
+                    #         r'[^a-zA-Z0-9]', '',
+                    #         "{} split {} {}".format(category, i, k))
+                    #     if k == "Test Negative root mean squared error":
+                    #         value = metric(yi, lgbm_preds, squared=True)
+                    #     else:
+                    #         value = metric(yi, lgbm_preds)
 
-                        logged_metrics[metric_key] = value
+                    #     logged_metrics[metric_key] = value
 
-                    mlflow.log_metrics(logged_metrics)
+                    # mlflow.log_metrics(logged_metrics)
 
                 logged_metrics = {}
                 for k, metric in self.metrics.items():
-                    metric_key = re.sub(
-                        r'[^a-zA-Z0-9]', '',
-                        "total {} split {} {}".format(category, i, k))
+                    metric_key = re.sub(r'[^a-zA-Z0-9]', '',
+                                        "total split {} {}".format(i, k))
                     if k == "Test Negative root mean squared error":
                         value = metric(total_yi,
                                        total_lgbm_preds,
