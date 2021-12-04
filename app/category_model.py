@@ -1,4 +1,5 @@
 import pickle
+import re
 from uuid import uuid4
 
 import mlflow
@@ -53,17 +54,19 @@ class CategoryModel(BaseEstimator, RegressorMixin):
         self.preprocess(Xp)
         del Xp
         X = self.apply_preprocessing(X)
-        for category in self.trained_categories:
-            print("Fitting {}".format(category))
-            df, x = X[category]["df"], X[category]["x"]
-            y = df["price"]
-            lgbm_model = LGBMRegressor(n_estimators=50,
-                                       learning_rate=0.5,
-                                       num_leaves=125,
-                                       random_state=156)
-            if len(y) >= 2:
-                lgbm_model = lgbm_model.fit(x, y)
-                self.models[category]["model"] = lgbm_model
+        unique_categories = list(set(X.keys()))
+        for category in unique_categories:
+            if category in self.trained_categories:
+                print("Fitting {}".format(category))
+                df, x = X[category]["df"], X[category]["x"]
+                y = df["price"]
+                lgbm_model = LGBMRegressor(n_estimators=50,
+                                           learning_rate=0.5,
+                                           num_leaves=125,
+                                           random_state=156)
+                if len(y) >= 2:
+                    lgbm_model = lgbm_model.fit(x, y)
+                    self.models[category]["model"] = lgbm_model
 
     def predict(self, X):
         X["predict_id"] = np.arange(X.shape[0])
@@ -71,21 +74,25 @@ class CategoryModel(BaseEstimator, RegressorMixin):
         Xp = self.apply_preprocessing(Xp)
         results = pd.DataFrame(columns=["id", "y"])
         for k, v in Xp.items():
+            if k == "Handmade/Housewares/Lighting":
+                print("Breakpoint")
+
+            df = v["df"]
             if self.models[k]["model"] is not None:
-                df = v["df"]
                 yi = self.models[k]["model"].predict(v["x"])
                 result = pd.DataFrame.from_dict({
                     "id": df["predict_id"].tolist(),
                     "y": yi
                 })
-                results = pd.concat([results, result])
             else:
                 print("Unable to predict for {}".format(k))
+                print([0 for x in range(df.shape[0])])
                 result = pd.DataFrame.from_dict({
                     "id":
                     df["predict_id"].tolist(),
-                    "y": [0 for x in range(len(df["predict_id"].tolist()))]
+                    "y": [0.0 for x in range(len(df["predict_id"].tolist()))]
                 })
+            results = pd.concat([results, result])
 
         results.sort_values(by=["id"]).reset_index(drop=True)
         return results["y"]
@@ -276,10 +283,10 @@ class CategoryModel(BaseEstimator, RegressorMixin):
                     total_yi = np.concatenate([total_yi, yi])
                     logged_metrics = {}
                     for k, metric in self.metrics.items():
-                        metric_key = "{} split {} {}".format(category, i,
-                                                             k).replace(
-                                                                 '&', "and")
-                        if k == "Negative root mean squared error":
+                        metric_key = re.sub(
+                            r'[^a-zA-Z0-9]', '',
+                            "{} split {} {}".format(category, i, k))
+                        if k == "Test Negative root mean squared error":
                             value = metric(yi, lgbm_preds, squared=True)
                         else:
                             value = metric(yi, lgbm_preds)
@@ -290,10 +297,10 @@ class CategoryModel(BaseEstimator, RegressorMixin):
 
                 logged_metrics = {}
                 for k, metric in self.metrics.items():
-                    metric_key = "total {} split {} {}".format(category, i,
-                                                               k).replace(
-                                                                   '&', "and")
-                    if k == "Negative root mean squared error":
+                    metric_key = re.sub(
+                        r'[^a-zA-Z0-9]', '',
+                        "total {} split {} {}".format(category, i, k))
+                    if k == "Test Negative root mean squared error":
                         value = metric(total_yi,
                                        total_lgbm_preds,
                                        squared=True)
