@@ -271,7 +271,6 @@ class NNModel(BaseEstimator, RegressorMixin):
 
     def apply_preprocessing(self, X, MAX_NAME_SEQ=10, MAX_ITEM_DESC_SEQ=75):
         X = self.common_preprocessing(X)
-        print(self.vectorizers["category_name"])
         with open(self.vectorizers["category_name"], 'rb') as f:
             vectorizer = pickle.load(f)
             X.loc[~X["category_name"].isin(vectorizer.classes_),
@@ -318,10 +317,10 @@ class NNModel(BaseEstimator, RegressorMixin):
             self.experiment).experiment_id
         mlflow.keras.autolog()
         i = 0
+        cv = RepeatedKFold(n_splits=n_splits,
+                           n_repeats=n_repeats,
+                           random_state=42)
         with mlflow.start_run(experiment_id=experiment_id) as run:
-            cv = RepeatedKFold(n_splits=n_splits,
-                               n_repeats=n_repeats,
-                               random_state=42)
             for train_index, test_index in cv.split(X):
                 print("ITERATION: {}".format(i))
                 X_train, X_test = X.loc[train_index], X.loc[test_index]

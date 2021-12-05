@@ -167,3 +167,23 @@ class LightGBMModel(BaseEstimator, RegressorMixin):
                         mlflow.log_params(v[i].get_params(deep=True))
                     else:
                         mlflow.log_metric(k, v[i])
+
+        cv = RepeatedKFold(n_splits=n_splits,
+                           n_repeats=n_repeats,
+                           random_state=42)
+        with mlflow.start_run(experiment_id=experiment_id) as run:
+            for train_index, test_index in cv.split(X):
+                print("ITERATION: {}".format(i))
+                X_train, X_test = X.loc[train_index], X.loc[test_index]
+                y_train, y_test = y.loc[train_index], y.loc[test_index]
+
+                self.fit(X_train, y_train)
+                X_test = self.apply_preprocessing(X_test)
+                y_test = np.log1p(y_test)
+                results = self.model.evaluate(X_test,
+                                              y_test,
+                                              batch_size=1000,
+                                              return_dict=True)
+                results = {"test_{}".format(k): v for k, v in results.items()}
+                mlflow.log_metrics(results)
+                i += 1

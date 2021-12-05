@@ -74,9 +74,6 @@ class CategoryModel(BaseEstimator, RegressorMixin):
         Xp = self.apply_preprocessing(Xp)
         results = pd.DataFrame(columns=["id", "y"])
         for k, v in Xp.items():
-            if k == "Handmade/Housewares/Lighting":
-                print("Breakpoint")
-
             df = v["df"]
             if self.models[k]["model"] is not None:
                 yi = self.models[k]["model"].predict(v["x"])
@@ -94,8 +91,8 @@ class CategoryModel(BaseEstimator, RegressorMixin):
                 })
             results = pd.concat([results, result])
 
-        results.sort_values(by=["id"]).reset_index(drop=True)
-        return results["y"]
+        # results = results.sort_values(by=["id"])
+        return results
 
     def score(self, y, y_pred):
         return -1 * rmsle(y, y_pred)
@@ -258,15 +255,15 @@ class CategoryModel(BaseEstimator, RegressorMixin):
 
         experiment_id = mlflow.get_experiment_by_name(
             self.experiment).experiment_id
+        cv = RepeatedStratifiedKFold(n_splits=n_splits,
+                                     n_repeats=n_repeats,
+                                     random_state=42)
+        X['category_name'] = X['category_name'].fillna(value='Other_Null')
         i = 0
-        with mlflow.start_run(experiment_id=experiment_id) as run:
-            mlflow.log_params(self.example_model.get_params(deep=True))
-            cv = RepeatedStratifiedKFold(n_splits=n_splits,
-                                         n_repeats=n_repeats,
-                                         random_state=42)
-            X['category_name'] = X['category_name'].fillna(value='Other_Null')
-            for train_index, test_index in cv.split(X, X["category_name"]):
+        for train_index, test_index in cv.split(X, X["category_name"]):
+            with mlflow.start_run(experiment_id=experiment_id) as run:
                 print("ITERATION: {}".format(i))
+                mlflow.log_params(self.example_model.get_params(deep=True))
                 X_train, X_test = X.loc[train_index], X.loc[test_index]
                 y_train, y_test = y.loc[train_index], y.loc[test_index]
 
@@ -279,28 +276,15 @@ class CategoryModel(BaseEstimator, RegressorMixin):
                     Xi = X_test.loc[category_index]
                     yi = y_test.loc[category_index]
                     results = self.predict(Xi)
-                    lgbm_preds = abs(results)
+                    lgbm_preds = abs(results['y'])
                     total_lgbm_preds = np.concatenate(
                         [total_lgbm_preds, lgbm_preds])
                     total_yi = np.concatenate([total_yi, yi])
-                    # logged_metrics = {}
-                    # for k, metric in self.metrics.items():
-                    #     metric_key = re.sub(
-                    #         r'[^a-zA-Z0-9]', '',
-                    #         "{} split {} {}".format(category, i, k))
-                    #     if k == "Test Negative root mean squared error":
-                    #         value = metric(yi, lgbm_preds, squared=True)
-                    #     else:
-                    #         value = metric(yi, lgbm_preds)
-
-                    #     logged_metrics[metric_key] = value
-
-                    # mlflow.log_metrics(logged_metrics)
 
                 logged_metrics = {}
                 for k, metric in self.metrics.items():
                     metric_key = re.sub(r'[^a-zA-Z0-9]', '',
-                                        "total split {} {}".format(i, k))
+                                        "total {}".format(k))
                     if k == "Test Negative root mean squared error":
                         value = metric(total_yi,
                                        total_lgbm_preds,

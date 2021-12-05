@@ -10,7 +10,7 @@ def rmsle(y, y_pred):
 
 
 def main(model_type="light_gbm"):
-    mercari_df = pd.read_csv('data/train.tsv', sep='\t')
+    mercari_df = pd.read_csv('data/train.tsv', sep='\t', nrows=10000)
     X = mercari_df
     y = mercari_df["price"]
 

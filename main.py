@@ -18,7 +18,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    df_train = pd.read_csv('data/train.tsv', sep='\t')
+    df_train = pd.read_csv('data/train.tsv', sep='\t', nrows=10000)
 
     X = df_train
     y = df_train["price"]
@@ -35,10 +35,10 @@ if __name__ == "__main__":
 
     if args.task == "predict":
         model.fit(X, y)
-        df_submit = pd.read_csv('data/test.tsv', sep='\t')
-        y_hat = model.predict(df_submit)
-        print(y_hat)
-        print(len(df_submit))
-        print(len(y_hat))
+        df_eval = pd.read_csv('data/test.tsv', sep='\t', nrows=1000)
+        y_hat = model.predict(df_eval)
+        df_submit = df_eval[["test_id"]].copy(deep=True)
+        df_submit["price"] = y_hat.round(3)
+        df_submit.to_csv("./submit.csv", index=False)
     else:
         main(args.model_type)
