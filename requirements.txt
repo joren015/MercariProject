@@ -6,3 +6,4 @@ kaggle==1.5.12
 lightgbm==3.3.0
 mlflow==1.21.0
 tensorflow==2.7.0
+psycopg2==2.9.2

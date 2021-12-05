@@ -308,6 +308,8 @@ class NNModel(BaseEstimator, RegressorMixin):
         return X
 
     def my_evaluate(self, X, y, n_splits=10, n_repeats=5):
+        tracking_uri = "sqlite:///mlflow.db"
+        mlflow.set_tracking_uri(tracking_uri)
         experiment_names = [x.name for x in mlflow.list_experiments()]
         if self.experiment not in experiment_names:
             mlflow.create_experiment(self.experiment)

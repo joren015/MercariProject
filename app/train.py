@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 
 pd.set_option('max_colwidth', 200)
-model_type = "category"
 
 
 def rmsle(y, y_pred):
@@ -10,7 +9,7 @@ def rmsle(y, y_pred):
     return np.sqrt(np.mean(np.power(np.log1p(y) - np.log1p(y_pred), 2)))
 
 
-def main():
+def main(model_type="light_gbm"):
     mercari_df = pd.read_csv('data/train.tsv', sep='\t')
     X = mercari_df
     y = mercari_df["price"]
@@ -20,7 +19,7 @@ def main():
         from app.light_gbm_model import LightGBMModel
         model = LightGBMModel()
         model.my_evaluate(X, y)
-    elif model_type == "NN":
+    elif model_type == "neural_network":
         from app.nn_model import NNModel
         model = NNModel()
         model.my_evaluate(X, y)
