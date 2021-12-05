@@ -1,5 +1,4 @@
 import argparse
-import gc
 
 import pandas as pd
 
@@ -9,16 +8,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "model_type",
     help=
-    "Which model to use for the given task. Options: light_gbm, neural_network, category_model",
+    "Which model to use for the given task. Options: light_gbm, neural_network, category_model.",
     type=str)
 parser.add_argument(
     "task",
-    help="Task to perform with chosen model. Options: evaluate, predict",
+    help="Task to perform with chosen model. Options: evaluate, predict.",
     type=str)
+
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    df_train = pd.read_csv('data/train.tsv', sep='\t', nrows=1000)
+    df_train = pd.read_csv('data/train.tsv', sep='\t')
+
     X = df_train
     y = df_train["price"]
 
