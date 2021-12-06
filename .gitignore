@@ -159,3 +159,6 @@ push.sh
 # MLFlow runs
 mlruns/
 mlflow.db
+
+# Kaggle submission files
+submission.csv
