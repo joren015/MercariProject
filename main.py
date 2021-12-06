@@ -18,7 +18,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    df_train = pd.read_csv('data/train.tsv', sep='\t', nrows=100)
+    df_train = pd.read_csv('data/train.tsv', sep='\t')
 
     X = df_train
     y = df_train["price"]
