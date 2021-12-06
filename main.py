@@ -39,6 +39,6 @@ if __name__ == "__main__":
         y_hat = model.predict(df_eval)
         df_submit = df_eval[["test_id"]].copy(deep=True)
         df_submit["price"] = y_hat.round(3)
-        df_submit.to_csv("./submit.csv", index=False)
+        df_submit.to_csv("./submission.csv", index=False)
     else:
         main(args.model_type)
