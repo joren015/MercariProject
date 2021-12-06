@@ -116,8 +116,7 @@ class NNModel(BaseEstimator, RegressorMixin):
         Xp = X.copy(deep=True)
         self.preprocess(Xp)
         del Xp
-        self.model = self.get_model(self.MAX_TEXT, self.MAX_CATEGORY,
-                                    self.MAX_BRAND, self.MAX_CONDITION)
+        self.model = self.get_model()
         BATCH_SIZE = 20000
         epochs = 5
         X = self.apply_preprocessing(X)
