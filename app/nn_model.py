@@ -5,6 +5,7 @@ import mlflow
 import numpy as np
 import pandas as pd
 from keras import backend as K
+from keras.optimizer_v2.adam import Adam
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import (GRU, Dense, Dropout, Embedding, Flatten, Input,
                           concatenate)
@@ -39,17 +40,23 @@ class NNModel(BaseEstimator, RegressorMixin):
                  experiment="NN",
                  **kwarg):
         self.experiment = experiment
-        self.model = self.get_model(MAX_TEXT, MAX_CATEGORY, MAX_BRAND,
-                                    MAX_CONDITION)
+        self.model = None
         self.vectorizers = {}
         self.eval_metric = make_scorer(self.score, greater_is_better=False)
         self.vectorizer_guid = str(uuid4()).replace('-', '_')
+        self.MAX_TEXT = MAX_TEXT
+        self.MAX_CATEGORY = MAX_CATEGORY
+        self.MAX_BRAND = MAX_BRAND
+        self.MAX_CONDITION = MAX_CONDITION
 
     #KERAS MODEL DEFINITION
-    def get_model(self, MAX_TEXT, MAX_CATEGORY, MAX_BRAND, MAX_CONDITION):
-        #params
-        dr_r = 0.1
-
+    def get_model(self,
+                  learning_rate=0.001,
+                  beta_1=0.9,
+                  beta_2=0.999,
+                  epsilon=1e-7,
+                  dr_r_1=0.1,
+                  dr_r_2=0.1):
         #Inputs
         name = Input(shape=[10], name="name")
         item_desc = Input(shape=[75], name="item_desc")
@@ -59,11 +66,11 @@ class NNModel(BaseEstimator, RegressorMixin):
         num_vars = Input(shape=[1], name="num_vars")
 
         #Embeddings layers
-        emb_name = Embedding(MAX_TEXT, 50)(name)
-        emb_item_desc = Embedding(MAX_TEXT, 50)(item_desc)
-        emb_brand_name = Embedding(MAX_BRAND, 10)(brand_name)
-        emb_category_name = Embedding(MAX_CATEGORY, 10)(category_name)
-        emb_item_condition = Embedding(MAX_CONDITION, 5)(item_condition)
+        emb_name = Embedding(self.MAX_TEXT, 50)(name)
+        emb_item_desc = Embedding(self.MAX_TEXT, 50)(item_desc)
+        emb_brand_name = Embedding(self.MAX_BRAND, 10)(brand_name)
+        emb_category_name = Embedding(self.MAX_CATEGORY, 10)(category_name)
+        emb_item_condition = Embedding(self.MAX_CONDITION, 5)(item_condition)
 
         #rnn layer
         rnn_layer1 = GRU(16)(emb_item_desc)
@@ -75,8 +82,8 @@ class NNModel(BaseEstimator, RegressorMixin):
             Flatten()(emb_category_name),
             Flatten()(emb_item_condition), rnn_layer1, rnn_layer2, num_vars
         ])
-        main_l = Dropout(dr_r)(Dense(128)(main_l))
-        main_l = Dropout(dr_r)(Dense(64)(main_l))
+        main_l = Dropout(dr_r_1)(Dense(128)(main_l))
+        main_l = Dropout(dr_r_2)(Dense(64)(main_l))
 
         #output
         output = Dense(1, activation="linear")(main_l)
@@ -87,7 +94,10 @@ class NNModel(BaseEstimator, RegressorMixin):
             num_vars
         ], output)
         model.compile(loss="mse",
-                      optimizer="adam",
+                      optimizer=Adam(learning_rate=learning_rate,
+                                     beta_1=beta_1,
+                                     beta_2=beta_2,
+                                     epsilon=epsilon),
                       metrics=[
                           "mae", self.rmsle_cust,
                           LogCoshError(),
@@ -104,10 +114,10 @@ class NNModel(BaseEstimator, RegressorMixin):
     def fit(self, X, y):
         self.vectorizer_guid = str(uuid4()).replace('-', '_')
         Xp = X.copy(deep=True)
-        MAX_TEXT, MAX_CATEGORY, MAX_BRAND, MAX_CONDITION = self.preprocess(Xp)
+        self.preprocess(Xp)
         del Xp
-        self.model = self.get_model(MAX_TEXT, MAX_CATEGORY, MAX_BRAND,
-                                    MAX_CONDITION)
+        self.model = self.get_model(self.MAX_TEXT, self.MAX_CATEGORY,
+                                    self.MAX_BRAND, self.MAX_CONDITION)
         BATCH_SIZE = 20000
         epochs = 5
         X = self.apply_preprocessing(X)
@@ -267,6 +277,11 @@ class NNModel(BaseEstimator, RegressorMixin):
             print(train["item_desc"].shape[1])
             print(train["num_vars"].shape[1])
 
+        self.MAX_TEXT = MAX_TEXT
+        self.MAX_CATEGORY = MAX_CATEGORY
+        self.MAX_BRAND = MAX_BRAND
+        self.MAX_CONDITION = MAX_CONDITION
+
         return MAX_TEXT, MAX_CATEGORY, MAX_BRAND, MAX_CONDITION
 
     def apply_preprocessing(self, X, MAX_NAME_SEQ=10, MAX_ITEM_DESC_SEQ=75):
@@ -336,3 +351,34 @@ class NNModel(BaseEstimator, RegressorMixin):
                 results = {"test_{}".format(k): v for k, v in results.items()}
                 mlflow.log_metrics(results)
                 i += 1
+
+    # def my_hyperparameter_tuning(self, X, y):
+    #     tracking_uri = "sqlite:///mlflow.db"
+    #     mlflow.set_tracking_uri(tracking_uri)
+    #     experiment_names = [x.name for x in mlflow.list_experiments()]
+    #     if self.experiment not in experiment_names:
+    #         mlflow.create_experiment(self.experiment)
+
+    #     experiment_id = mlflow.get_experiment_by_name(
+    #         self.experiment).experiment_id
+    #     mlflow.keras.autolog()
+    #     i = 0
+    #     cv = RepeatedKFold(n_splits=n_splits,
+    #                        n_repeats=n_repeats,
+    #                        random_state=42)
+    #     with mlflow.start_run(experiment_id=experiment_id) as run:
+    #         for train_index, test_index in cv.split(X):
+    #             print("ITERATION: {}".format(i))
+    #             X_train, X_test = X.loc[train_index], X.loc[test_index]
+    #             y_train, y_test = y.loc[train_index], y.loc[test_index]
+
+    #             self.fit(X_train, y_train)
+    #             X_test = self.apply_preprocessing(X_test)
+    #             y_test = np.log1p(y_test)
+    #             results = self.model.evaluate(X_test,
+    #                                           y_test,
+    #                                           batch_size=1000,
+    #                                           return_dict=True)
+    #             results = {"test_{}".format(k): v for k, v in results.items()}
+    #             mlflow.log_metrics(results)
+    #             i += 1

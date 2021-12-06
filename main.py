@@ -2,8 +2,6 @@ import argparse
 
 import pandas as pd
 
-from app.train import main
-
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "model_type",
@@ -41,4 +39,4 @@ if __name__ == "__main__":
         df_submit["price"] = y_hat.round(3)
         df_submit.to_csv("./submission.csv", index=False)
     else:
-        main(args.model_type)
+        model.my_evaluate(X, y)
