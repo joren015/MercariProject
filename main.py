@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "model_type",
     help=
-    "Which model to use for the given task. Options: light_gbm, neural_network, category_model.",
+    "Which model to use for the given task. Options: light_gbm, neural_network, category_model, ridge_regression.",
     type=str)
 parser.add_argument(
     "task",
@@ -27,9 +27,12 @@ if __name__ == "__main__":
     elif args.model_type == "neural_network":
         from app.nn_model import NNModel
         model = NNModel()
-    else:
+    elif args.model_type == "category_model":
         from app.category_model import CategoryModel
         model = CategoryModel()
+    else:
+        from app.ridge_regression_model import RidgeRegressionModel
+        model = RidgeRegressionModel()
 
     if args.task == "predict":
         model.fit(X, y)
