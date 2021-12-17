@@ -8,8 +8,11 @@ message: >-
   metadata from this file.
 type: software
 authors:
-  - given-names: Michael Andreyeshchev
-  - given-names: Ryan Bell
-  - given-names: Alexander Jorenby
-  - given-names: Jiehwan Yang
-version: 0.0.1
+  - given-names: Michael
+    family-names: Andreyeshchev
+  - given-names: Ryan
+    family-names: Bell
+  - given-names: Alexander
+    family-names: Jorenby
+  - given-names: Jiehwan
+    family-names: Yang
