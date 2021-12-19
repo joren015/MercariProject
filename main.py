@@ -1,6 +1,8 @@
 import argparse
 
+import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -41,5 +43,20 @@ if __name__ == "__main__":
         df_submit = df_eval[["test_id"]].copy(deep=True)
         df_submit["price"] = y_hat.round(3)
         df_submit.to_csv("./submission.csv", index=False)
-    else:
+    elif args.task == "evaluate":
         model.my_evaluate(X, y)
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(X,
+                                                            y,
+                                                            test_size=0.1)
+        model.fit(X_train, y_train)
+        df_eval = X_test
+        y_hat = model.predict(df_eval)
+        df_eval["y_hat"] = y_hat
+        err = np.sqrt(
+            np.mean(np.power(np.log1p(y_test) - np.log1p(y_hat.round(3)), 2)))
+        print(err)
+        df_eval["err"] = np.power(
+            np.log1p(y_test) - np.log1p(y_hat.round(3)), 2)
+        print(np.sqrt(np.mean(df_eval["err"])))
+        df_eval.to_csv("./eval.csv")
