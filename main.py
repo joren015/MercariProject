@@ -59,4 +59,5 @@ if __name__ == "__main__":
         df_eval["err"] = np.power(
             np.log1p(y_test) - np.log1p(y_hat.round(3)), 2)
         print(np.sqrt(np.mean(df_eval["err"])))
+        X_train.to_csv("./train.csv")
         df_eval.to_csv("./eval.csv")
